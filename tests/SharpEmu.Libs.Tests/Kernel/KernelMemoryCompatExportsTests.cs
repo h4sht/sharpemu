@@ -126,6 +126,126 @@ public sealed class KernelMemoryCompatExportsTests
     }
 
     [Fact]
+    public void PosixPread_BadDescriptorReturnsMinusOne()
+    {
+        const ulong memoryBase = 0x1_0000_0000;
+        const ulong bufferAddress = memoryBase + 0x200;
+        var memory = new FakeCpuMemory(memoryBase, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        context[CpuRegister.Rdi] = 0x80020002; // sentinel fd
+        context[CpuRegister.Rsi] = bufferAddress;
+        context[CpuRegister.Rdx] = 0x40;
+        context[CpuRegister.Rcx] = 0;
+
+        var result = KernelMemoryCompatExports.PosixPread(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
+    public void PosixPwrite_BadDescriptorReturnsMinusOne()
+    {
+        const ulong memoryBase = 0x1_0000_0000;
+        const ulong bufferAddress = memoryBase + 0x200;
+        var memory = new FakeCpuMemory(memoryBase, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        memory.WriteCString(bufferAddress, "payload");
+        context[CpuRegister.Rdi] = 0x80020002; // sentinel fd
+        context[CpuRegister.Rsi] = bufferAddress;
+        context[CpuRegister.Rdx] = 0x7;
+        context[CpuRegister.Rcx] = 0;
+
+        var result = KernelMemoryCompatExports.PosixPwrite(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
+    public void PosixFsync_BadDescriptorReturnsMinusOne()
+    {
+        var memory = new FakeCpuMemory(0x1_0000_0000, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        context[CpuRegister.Rdi] = 0x80020002; // sentinel fd
+
+        var result = KernelMemoryCompatExports.PosixFsync(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
+    public void PosixFtruncate_BadDescriptorReturnsMinusOne()
+    {
+        var memory = new FakeCpuMemory(0x1_0000_0000, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        context[CpuRegister.Rdi] = 0x80020002; // sentinel fd
+        context[CpuRegister.Rsi] = 0x100;
+
+        var result = KernelMemoryCompatExports.PosixFtruncate(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
+    public void PosixDup_BadDescriptorReturnsMinusOne()
+    {
+        var memory = new FakeCpuMemory(0x1_0000_0000, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        context[CpuRegister.Rdi] = 0x80020002; // sentinel fd
+
+        var result = KernelMemoryCompatExports.PosixDup(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
+    public void PosixDup2_BadOldDescriptorReturnsMinusOne()
+    {
+        var memory = new FakeCpuMemory(0x1_0000_0000, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        context[CpuRegister.Rdi] = 0x80020002; // sentinel old fd
+        context[CpuRegister.Rsi] = 42;         // valid new fd slot
+
+        var result = KernelMemoryCompatExports.PosixDup2(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
+    public void PosixFcntl_BadDescriptorReturnsMinusOne()
+    {
+        var memory = new FakeCpuMemory(0x1_0000_0000, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        context[CpuRegister.Rdi] = 0x80020002; // sentinel fd
+        context[CpuRegister.Rsi] = 0;          // F_DUPFD (checks fd validity)
+
+        var result = KernelMemoryCompatExports.PosixFcntl(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
+    public void PosixRename_UnreadablePathsReturnsMinusOne()
+    {
+        const ulong memoryBase = 0x1_0000_0000;
+        var memory = new FakeCpuMemory(memoryBase, 0x1000);
+        var context = new CpuContext(memory, Generation.Gen5);
+        context[CpuRegister.Rdi] = memoryBase + 0x10_0000; // unreachable
+        context[CpuRegister.Rsi] = memoryBase + 0x20_0000; // unreachable
+
+        var result = KernelMemoryCompatExports.PosixRename(context);
+
+        Assert.Equal(-1, result);
+        Assert.Equal(ulong.MaxValue, context[CpuRegister.Rax]);
+    }
+
+    [Fact]
     public void Sprintf_ReadsVariadicDoubleFromXmmRegister()
     {
         const ulong memoryBase = 0x1_0000_0000;
